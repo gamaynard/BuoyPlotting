@@ -20,7 +20,11 @@
 ## ---------------------------
 
 ## set working directory
-## Working directory should already be set to the github repository
+if(Sys.getenv()[[8]]=="HOOK-05"){
+  setwd("C:/Users/George/Desktop/Autotask Workplace/Common/Research/Seals/Deterrence/BuoyPlot/")
+} else {
+  setwd(choose.dir())
+}
 ## ---------------------------
 
 ## Set options
@@ -43,7 +47,7 @@ grays=gray.colors(
   end = 1
   )
 grays[1:length(grays)]=grays[seq(length(grays),1,-1)]
-for(i in seq(2009,2019,1)){
+for(i in seq(2009,2020,1)){
   ## Download the data from buoy 44020
   data=buoy(
     dataset='stdmet', ## Standard meteorological data
@@ -77,6 +81,9 @@ for(i in seq(2009,2019,1)){
   ## Add a line plotting temperature by ordinal date, using darker colors for 
   ## more recent data
   lines(data$TEMP~data$ORD,col=grays[i-2008])
+  if(i==2020){
+    lines(data$TEMP~data$ORD,col='black',lwd=2)
+  }
 }
 ## Add the most up to date information (not QAQC'd by NOAA yet)
 data=fread(
