@@ -79,7 +79,14 @@ for(i in seq(2009,2019,1)){
   lines(data$TEMP~data$ORD,col=grays[i-2008])
 }
 ## Add the most up to date information (not QAQC'd by NOAA yet)
-
+data=fread(
+  "https://www.ndbc.noaa.gov/data/realtime2/44020.txt"
+  )
+data=data[-1,]
+data$TIMESTAMP=ymd_hm(paste(data$`#YY`,data$MM,data$DD,data$hh,data$mm,sep="-"))
+data$ORD=yday(data$TIMESTAMP)+hour(data$TIMESTAMP)/24
+data$TEMP=data$TEMP=celsius.to.fahrenheit(as.numeric(as.character(data$WTMP)),round=1)
+lines(data$TEMP~data$ORD,col='black',lwd=2)
 ## Add blue month dividers
 abline(v=c(91,121,152),lty=2,col='blue')
 ## Add a red "you are here" line
