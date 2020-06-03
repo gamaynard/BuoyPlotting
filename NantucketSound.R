@@ -36,22 +36,36 @@ library(rnoaa)
 library(lubridate)
 library(dplyr)
 library(weathermetrics)
+library(data.table)
 ## ---------------------------
 
 ## load up our functions into memory
 
 ## ---------------------------
+
+## Select buoy (default is 44020, Nantucket Sound)
+b=44020
+## Identify years of interest (default is last decade)
+y2=year(Sys.Date())
+y1=y2-10
+## Create a color spectrum for plotting
 grays=gray.colors(
-  length(seq(2009,2020,1)), 
+  length(seq(y1,y2,1)), 
   start = 0, 
   end = 1
-  )
+)
 grays[1:length(grays)]=grays[seq(length(grays),1,-1)]
-for(i in seq(2009,2020,1)){
+## Create an empty dataframe to store all results
+fullData=data.frame(
+  TIMESTAMP=character(),
+  TEMP=double(),
+  ORD=integer()
+)
+for(i in seq(y1,y2,1)){
   ## Download the data from buoy 44020
   data=buoy(
     dataset='stdmet', ## Standard meteorological data
-    buoyid=44020, ## The Nantucket Sound buoy
+    buoyid=b,
     year=i
     )$data
   ## Remove unnecessary columns and clean up the formatting
@@ -65,9 +79,17 @@ for(i in seq(2009,2020,1)){
   ## Convert from Celsius to Farenheit
   data$TEMP=celsius.to.fahrenheit(data$TEMP,round=1)
   ## Add the ordinal date for each observation
-  data$ORD=yday(data$TIMESTAMP)+hour(data$TIMESTAMP)/24
-  ## If it's the first year, set up a plot
-  if(i==2009){
+  data$ORD=yday(data$TIMESTAMP)+(hour(data$TIMESTAMP)/24+minute(data$TIMESTAMP)/(24*60))
+  ## Send year i's data into the full data frame
+  fullData=rbind(fullData,data)
+  ## If it's the first year, open a graphics device and set up a plot
+  if(i==y1){
+    jpeg(
+      filename=paste("Buoy_",b,"_SST_",Sys.Date(),".jpg",sep=""),
+      width=500,
+      height=500,
+      units="px"
+      )
     plot(
       data$TEMP~data$ORD,
       type='n',
@@ -75,13 +97,13 @@ for(i in seq(2009,2020,1)){
       xlim=c(85,185),
       ylab=expression(paste("Sea Surface Temp (",~degree~F,")")),
       xlab="Date",
-      main="Buoy 44020: Nantucket Sound"
+      main=paste("Buoy: ",b)
       )
   }
   ## Add a line plotting temperature by ordinal date, using darker colors for 
   ## more recent data
-  lines(data$TEMP~data$ORD,col=grays[i-2008])
-  if(i==2020){
+  lines(data$TEMP~data$ORD,col=grays[i-y1-1])
+  if(i==y2){
     lines(data$TEMP~data$ORD,col='black',lwd=2)
   }
 }
@@ -98,3 +120,47 @@ lines(data$TEMP~data$ORD,col='black',lwd=2)
 abline(v=c(91,121,152),lty=2,col='blue')
 ## Add a red "you are here" line
 abline(v=yday(Sys.Date()),lty=2,col='red')
+## Close the graphics device to save the plot
+dev.off()
+## Point the user to the new plot
+cat(paste("Your new file for Buoy ",b," is saved at ",getwd(),"/Buoy_",b,"_SST_",Sys.Date(),".jpg",sep=""))
+## Read the new data into the fullData frame
+data=select(data,TIMESTAMP,ORD,TEMP)
+fullData=rbind(fullData,data)
+## Assign each observation a whole number ordinal date
+fullData$DAY=yday(ymd_hms(as.character(fullData$TIMESTAMP)))
+## Assign each observation a year
+fullData$YEAR=year(ymd_hms(as.character(fullData$TIMESTAMP)))
+## Subset out only those observations not from this year
+HIST=subset(fullData,fullData$YEAR!=y2&is.na(fullData$TEMP)==FALSE)
+CURR=subset(fullData,fullData$YEAR==y2&is.na(fullData$TEMP)==FALSE)
+## Calculate daily averages
+HIST=aggregate(
+  HIST$TEMP,
+  by=list(HIST$DAY),
+  FUN='mean'
+)
+colnames(HIST)=c("ORD","TEMP")
+CURR=aggregate(
+  CURR$TEMP,
+  by=list(CURR$DAY),
+  FUN='mean'
+)
+colnames(CURR)=c("ORD","temp")
+CURR=CURR[-1,]
+## Merge the historic and current values into one matrix
+temps=merge(CURR,HIST)
+## Calculate differences
+temps$DIFF=temps$temp-temps$TEMP
+plot(temps$DIFF~temps$ORD,
+  type='l',
+  main=paste("Buoy: ",b),
+  xlab="Ordinal Date",
+  ylab=expression(paste(~Delta,"SST (",~degree~F,")"))
+  )
+abline(h=0,
+  lty=2,
+  col='blue')
+abline(v=yday(Sys.Date()),
+  lty=3,
+  col='red')
