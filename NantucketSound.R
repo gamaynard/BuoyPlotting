@@ -152,6 +152,14 @@ CURR=CURR[-1,]
 temps=merge(CURR,HIST)
 ## Calculate differences
 temps$DIFF=temps$temp-temps$TEMP
+## Open a new graphics device to create a 
+## plot of differences
+jpeg(
+  filename=paste("Buoy_",b,"_TempDiff_",Sys.Date(),".jpg",sep=""),
+  width=500,
+  height=500,
+  units="px"
+)
 plot(temps$DIFF~temps$ORD,
   type='l',
   main=paste("Buoy: ",b),
@@ -160,7 +168,9 @@ plot(temps$DIFF~temps$ORD,
   )
 abline(h=0,
   lty=2,
-  col='blue')
+  col='black')
 abline(v=yday(Sys.Date()),
   lty=3,
   col='red')
+abline(v=c(91,121,152),lty=2,col='blue')
+dev.off()
